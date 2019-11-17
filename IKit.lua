@@ -64,7 +64,7 @@ end
 
 local IKit = {
     MAXPLAYER = 24,
-    DEBUG = 0,
+    DEBUG = false,
 };
 
 IKit.World = {
@@ -99,22 +99,23 @@ function IKit.World:forEach(type,...)
 end
 
 IKit.World:addEventListener(IKit.World.PlayerSignal,function(player, signal)
-    if signal == -1 then
-        for i = 1, #IKit.Command[player.name], 1 do
-            IKit.Command[player.name][i] = string.bytesToString(IKit.Command[player.name][i]);
+    if signal >= -1 and signal <= 255 then
+        if signal == -1 then
+            for i = 1, #IKit.Command[player.name], 1 do
+                IKit.Command[player.name][i] = string.bytesToString(IKit.Command[player.name][i]);
+            end
+            IKit.Command:execute(player,IKit.Command[player.name]);
+            IKit.Command[player.name] = {};
+            return;
         end
-
-        IKit.Command:execute(player,IKit.Command[player.name]);
-        IKit.Command[player.name] = {};
-        return;
-    end
-    if not IKit.Command[player.name] then
-        IKit.Command[player.name] = {};
-    end
-    if signal == 0 then
-        table.insert(IKit.Command[player.name],{});
-    else 
-        table.insert(IKit.Command[player.name][#IKit.Command[player.name]],signal);
+        if not IKit.Command[player.name] then
+            IKit.Command[player.name] = {};
+        end
+        if signal == 0 then
+            table.insert(IKit.Command[player.name],{});
+        else 
+            table.insert(IKit.Command[player.name][#IKit.Command[player.name]],signal);
+        end
     end
 end);
 
@@ -215,7 +216,7 @@ IKit.Command = {};
 
 
 IKit.Command["help"] = {condition = "IKit.help",behavior = function(player)
-    print("帮助？？不存在的(￣▽￣)");
+    print("帮助？不存在的");
 end};
 
 IKit.Command["killme"] = {condition = "IKit.kill.me",behavior = function(player,args)

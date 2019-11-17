@@ -1,4 +1,6 @@
-IKit = {}
+IKit = {
+    
+}
 
 IKit.Event = {
     Chat  = {},
