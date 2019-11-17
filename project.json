@@ -1,0 +1,4 @@
+{
+    "game": ["IKit.lua"], 
+    "ui": ["ui.lua"]
+}
