@@ -64,7 +64,7 @@ end
 
 local IKit = {
     MAXPLAYER = 24,
-    DEBUG = false,
+    DEBUG = true,
 };
 
 IKit.World = {
@@ -92,29 +92,39 @@ function IKit.World:detachEventListener(type,event)
     end
 end
 
+function IKit.World:getEventListener(type,event)
+    for i = 1, #type, 1 do
+        if type[i] == event then
+            return type[i];
+        end
+    end
+    return nil;
+end
+
 function IKit.World:forEach(type,...)
     for i = 1, #type, 1 do
         type[i](...);
     end
 end
 
+--  -1到255被占了QWQ
 IKit.World:addEventListener(IKit.World.PlayerSignal,function(player, signal)
     if signal >= -1 and signal <= 255 then
         if signal == -1 then
-            for i = 1, #IKit.Command[player.name], 1 do
-                IKit.Command[player.name][i] = string.bytesToString(IKit.Command[player.name][i]);
+            for i = 1, #player.user.command, 1 do
+                player.user.command[i] = string.bytesToString(player.user.command[i]);
             end
-            IKit.Command:execute(player,IKit.Command[player.name]);
-            IKit.Command[player.name] = {};
+            IKit.Command:execute(player,player.user.command);
+            player.user.command = {};
             return;
         end
-        if not IKit.Command[player.name] then
-            IKit.Command[player.name] = {};
+        if not player.user.command then
+            player.user.command = {};
         end
         if signal == 0 then
-            table.insert(IKit.Command[player.name],{});
+            table.insert(player.user.command,{});
         else 
-            table.insert(IKit.Command[player.name][#IKit.Command[player.name]],signal);
+            table.insert(player.user.command[#player.user.command],signal);
         end
     end
 end);
@@ -156,12 +166,21 @@ IKit.World:addEventListener(IKit.World.Update,function(time)
     local i = 1;
     while i <= #IKit.Timer.Task do
         if IKit.Timer.Task[i].time < Game.GetTime() then
-            if not pcall(IKit.Timer.Task[i].handle) then
-                table.remove(IKit.Timer.Task,i);
-            elseif IKit.Timer.Task[i].period == nil then
-                table.remove(IKit.Timer.Task,i);
+            if IKit.DEBUG then
+                IKit.Timer.Task[i].handle();
+                if IKit.Timer.Task[i].period == nil then
+                    table.remove(IKit.Timer.Task,i);
+                else
+                    IKit.Timer.Task[i].time = Game.GetTime() + IKit.Timer.Task[i].period;
+                end
             else
-                IKit.Timer.Task[i].time = Game.GetTime() + IKit.Timer.Task[i].period;
+                if not pcall(IKit.Timer.Task[i].handle) then
+                    table.remove(IKit.Timer.Task,i);
+                elseif IKit.Timer.Task[i].period == nil then
+                    table.remove(IKit.Timer.Task,i);
+                else
+                    IKit.Timer.Task[i].time = Game.GetTime() + IKit.Timer.Task[i].period;
+                end
             end
         end
         i = i + 1;
@@ -201,12 +220,12 @@ function IKit.Group:setGroup(player,group)
     IKit.Player:find(player).user.group = group;
 end
 
-function IKit.Group:addGroup(group)
-    if(IKit.Group[group]) then
-        print("已存在同名称的用户组");
-    end
-        IKit.Group[group] = {};
-end
+-- function IKit.Group:addGroup(group)
+--     if(IKit.Group[group]) then
+--         print("已存在同名称的用户组");
+--     end
+--         IKit.Group[group] = {};
+-- end
 
 IKit.World:addEventListener(IKit.World.PlayerConnect,function(player)
     IKit.Group:setGroup(player,"default");
@@ -258,18 +277,56 @@ end
 end};
 
 
+IKit.Command["sethome"] = {condition = "IKit.sethome",behavior = function(player)
+    player.user.home = player.position; 
+end};
+
+IKit.Command["home"] = {condition = "IKit.home",behavior = function(player)
+    if not player.user.home then 
+        print("未设置家");
+        return;
+    end
+    player.position = player.user.home; 
+end};
+
+IKit.Command["setspawn"] = {condition = "IKit.setspawn",behavior = function(player)
+    IKit.Command["setspawn"].spawn = player.position;
+
+    IKit.Command["setspawn"].moveToSpawn = function(player)
+        player.position = IKit.Command["setspawn"].spawn;
+    end
+
+    if not IKit.World:getEventListener(IKit.World.PlayerSpawn,IKit.Command["setspawn"].moveToSpawn) then
+        IKit.World:addEventListener(IKit.World.PlayerSpawn,IKit.Command["setspawn"].moveToSpawn);
+    end
+end};
+
+
+IKit.Command["spawn"] = {condition = "IKit.spawn",behavior = function(player)
+    player.position = IKit.Command["setspawn"].spawn;
+end};
+
+IKit.Command["cleanspawn"] = {condition = "IKit.cleanspawn",behavior = function(player)
+    IKit.World:detachEventListener(IKit.World.PlayerSpawn,IKit.Command["setspawn"].moveToSpawn);
+end};
+
+
+
 function IKit.Command: execute(player,command)
     local name = command[1];
     if IKit.Command[name] == nil then
         return;
     end
-
     local group = player.user.group;
     for i = 1, #IKit.Group[group], 1 do
         if(string.find(IKit.Command[name].condition,IKit.Group[group][i]) ~= nil) then
             table.remove(command,1);
-            if not pcall(IKit.Command[name].behavior,player,command) then
-                print("指令错误");
+            if IKit.DEBUG then
+                IKit.Command[name].behavior(player,command);
+            else
+                if not pcall(IKit.Command[name].behavior,player,command) then
+                    print("指令错误");
+                end
             end
             return;
         end
