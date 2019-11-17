@@ -64,7 +64,7 @@ end
 
 local IKit = {
     MAXPLAYER = 24,
-    DEBUG = true,
+    DEBUG = false,
 };
 
 IKit.World = {
@@ -295,12 +295,10 @@ IKit.Command["setspawn"] = {condition = "IKit.setspawn",behavior = function(play
     IKit.Command["setspawn"].moveToSpawn = function(player)
         player.position = IKit.Command["setspawn"].spawn;
     end
-
     if not IKit.World:getEventListener(IKit.World.PlayerSpawn,IKit.Command["setspawn"].moveToSpawn) then
         IKit.World:addEventListener(IKit.World.PlayerSpawn,IKit.Command["setspawn"].moveToSpawn);
     end
 end};
-
 
 IKit.Command["spawn"] = {condition = "IKit.spawn",behavior = function(player)
     player.position = IKit.Command["setspawn"].spawn;
@@ -308,6 +306,15 @@ end};
 
 IKit.Command["cleanspawn"] = {condition = "IKit.cleanspawn",behavior = function(player)
     IKit.World:detachEventListener(IKit.World.PlayerSpawn,IKit.Command["setspawn"].moveToSpawn);
+end};
+
+
+IKit.Command["health"] = {condition = "IKit.health",behavior = function(player,args)
+    IKit.Player:find(args[1]).health = tonumber(args[2]);
+end};
+
+IKit.Command["armor"] = {condition = "IKit.armor",behavior = function(player,args)
+    IKit.Player:find(args[1]).armor = tonumber(args[2]);
 end};
 
 
