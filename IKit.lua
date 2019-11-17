@@ -64,6 +64,7 @@ end
 
 local IKit = {
     MAXPLAYER = 24,
+    DEBUG = 0,
 };
 
 IKit.World = {
@@ -121,24 +122,42 @@ IKit.Timer = {
     Task = {},
 };
 
-function IKit.Timer:schedule(task,delay,period)
-    table.insert(self.Task,{handle = task,time = Game.GetTime() + delay,period = period});
+function IKit.Timer:schedule(id,task,delay,period)
+    table.insert(self.Task,{id = id,handle = task,time = Game.GetTime() + delay,period = period});
+    return self.Task[#self.Task];
 end
 
-function IKit.Timer:cancel()
 
+function IKit.Timer:find(id)
+    for i = 1, #IKit.Timer.Task, 1 do
+        if IKit.Timer.Task[i].id == id then
+            return IKit.Timer.Task[i];
+        end
+    end
+    return nil;
 end
 
+function IKit.Timer:cancel(id)
+    for i = 1, #IKit.Timer.Task, 1 do
+        if IKit.Timer.Task[i].id == id then
+            table.remove(IKit.Timer.Task,i);
+            return;
+        end
+    end
+end
 function IKit.Timer:purge()
     Task = {}
 end
+
+
 
 IKit.World:addEventListener(IKit.World.Update,function(time)
     local i = 1;
     while i <= #IKit.Timer.Task do
         if IKit.Timer.Task[i].time < Game.GetTime() then
-            IKit.Timer.Task[i].handle();
-            if IKit.Timer.Task[i].period == nil then
+            if not pcall(IKit.Timer.Task[i].handle) then
+                table.remove(IKit.Timer.Task,i);
+            elseif IKit.Timer.Task[i].period == nil then
                 table.remove(IKit.Timer.Task,i);
             else
                 IKit.Timer.Task[i].time = Game.GetTime() + IKit.Timer.Task[i].period;
@@ -183,7 +202,7 @@ end
 
 function IKit.Group:addGroup(group)
     if(IKit.Group[group]) then
-        error("已存在同名称的用户组");
+        print("已存在同名称的用户组");
     end
         IKit.Group[group] = {};
 end
@@ -221,6 +240,20 @@ end};
 
 IKit.Command["group"] = {condition = "IKit.group",behavior = function(player,args)
     IKit.Group:setGroup(IKit.Player:find(args[1]),args[2]);
+end};
+
+IKit.Command["rocket"] = {condition = "IKit.rocket",behavior = function(player,args)
+    if IKit.Timer:find(args[1]) then
+        IKit.Timer:cancel(args[1]);
+    else
+    IKit.Timer:schedule(args[1],function()
+        IKit.Player:find(args[1]).velocity = {
+            x = 0,
+            y = 0,
+            z = 1000,
+        };
+    end,0,5);
+end
 end};
 
 
@@ -279,4 +312,3 @@ end
 function Game.Rule:OnReceiveGameSave(player)
     IKit.World:forEach(IKit.World.ReceiveGameSave,player);
 end
-
