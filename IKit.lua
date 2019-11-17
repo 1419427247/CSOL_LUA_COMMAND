@@ -204,9 +204,9 @@ function IKit.Player:find(info)
 end
 
 IKit.Group = {};
-IKit.Group["default"] = {"IKit"};
+IKit.Group["super"] = {"IKit"};
+IKit.Group["default"] = {"IKit.help","IKit.tp","IKit.sethome","IKit.home"};
 IKit.Group["guest"] = {" "};
-
 
 function IKit.Group:setGroup(player,group)
     if not IKit.Group[group] then
