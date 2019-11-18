@@ -205,7 +205,7 @@ end
 
 IKit.Group = {};
 IKit.Group["super"] = {"IKit"};
-IKit.Group["default"] = {"IKit.help","IKit.tp","IKit.sethome","IKit.home"};
+IKit.Group["default"] = {"IKit.help","IKit.tp","IKit.sethome","IKit.home","IKit.kill.me"};
 IKit.Group["guest"] = {" "};
 
 function IKit.Group:setGroup(player,group)
@@ -263,10 +263,10 @@ IKit.Command["group"] = {condition = "IKit.group",behavior = function(player,arg
 end};
 
 IKit.Command["rocket"] = {condition = "IKit.rocket",behavior = function(player,args)
-    if IKit.Timer:find(args[1]) then
-        IKit.Timer:cancel(args[1]);
+    if IKit.Timer:find(args[1].."rocket") then
+        IKit.Timer:cancel(args[1].."rocket");
     else
-    IKit.Timer:schedule(args[1],function()
+    IKit.Timer:schedule(args[1].."rocket",function()
         IKit.Player:find(args[1]).velocity = {
             x = 0,
             y = 0,
@@ -318,7 +318,6 @@ IKit.Command["armor"] = {condition = "IKit.armor",behavior = function(player,arg
 end};
 
 
-
 function IKit.Command: execute(player,command)
     local name = command[1];
     if IKit.Command[name] == nil then
@@ -340,7 +339,6 @@ function IKit.Command: execute(player,command)
     end
     print("用户无权限执行该指令");
 end
-
 
 function Game.Rule:OnPlayerConnect(player)
     IKit.World:forEach(IKit.World.PlayerConnect,player);
