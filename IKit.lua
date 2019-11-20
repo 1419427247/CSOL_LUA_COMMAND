@@ -391,7 +391,7 @@ IKit.Command["sethome"] = {condition = "IKit.sethome",behavior = function(player
     player.user.home = player.position; 
 end};
 
---回答家
+--回家
 IKit.Command["home"] = {condition = "IKit.home",behavior = function(player)
     if not player.user.home then 
         print("未设置家");
@@ -424,10 +424,10 @@ end};
 
 --通过正则表达式查询玩家并设置该玩家的生命值
 IKit.Command["health"] = {condition = "IKit.health",behavior = function(player,args)
-    IKit.Player:find(args[1]).health = tonumber(args[2]);
+    IKit.Player:findFuzzy(args[1]).health = tonumber(args[2]);
 end};
 
 --通过正则表达式查询玩家并设置该玩家的护甲值
 IKit.Command["armor"] = {condition = "IKit.armor",behavior = function(player,args)
-    IKit.Player:find(args[1]).armor = tonumber(args[2]);
+    IKit.Player:findFuzzy(args[1]).armor = tonumber(args[2]);
 end};
