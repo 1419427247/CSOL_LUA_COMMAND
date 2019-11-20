@@ -2,6 +2,37 @@ IKit = {
     
 }
 
+IKit.Timer = {
+    Task = {},
+};
+
+function IKit.Timer:schedule(id,task,delay,period)
+    table.insert(self.Task,{id = id,handle = task,time = Game.GetTime() + delay,period = period});
+    return self.Task[#self.Task];
+end
+
+
+function IKit.Timer:find(id)
+    for i = 1, #IKit.Timer.Task, 1 do
+        if IKit.Timer.Task[i].id == id then
+            return IKit.Timer.Task[i];
+        end
+    end
+    return nil;
+end
+
+function IKit.Timer:cancel(id)
+    for i = 1, #IKit.Timer.Task, 1 do
+        if IKit.Timer.Task[i].id == id then
+            table.remove(IKit.Timer.Task,i);
+            return;
+        end
+    end
+end
+function IKit.Timer:purge()
+    Task = {}
+end
+
 IKit.Event = {
     Chat  = {},
     RoundStart={},
