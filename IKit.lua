@@ -224,15 +224,11 @@ function IKit.Player:find(info)
 end
 
 function IKit.Player:findFuzzy(name)
-    local splayer = nil;
+    local splayer = {};
     for i = 1, IKit.MAXPLAYER, 1 do
         local cp = Game.Player:Create(i);
         if cp~= nil and string.find(cp.name,name) then
-            if splayer == nil then
-                splayer = cp;
-            else
-                return nil;
-            end
+            table.insert(splayer,cp);
         end
     end
     return splayer;
@@ -261,7 +257,7 @@ end
 -- end
 
 IKit.World:addEventListener(IKit.World.PlayerConnect,function(player)
-    IKit.Group:setGroup(player,"super");
+    IKit.Group:setGroup(player,"default");
 end);
 
 IKit.Command = {};
@@ -353,8 +349,8 @@ IKit.Command["tpid"] = {condition = "IKit.tp.playerid",behavior = function(playe
 end};
 
 --通过正则表达式查询玩家进行传送
-IKit.Command["tpf"] = {condition = "IKit.tp.Fuzzyname",behavior = function(player,args)
-    player.position = IKit.Player:findFuzzy(args[1]).position;
+IKit.Command["tpf"] = {condition = "IKit.tp.fuzzyname",behavior = function(player,args)
+    player.position = IKit.Player:findFuzzy(args[1])[1].position;
 end};
 
 --传送到指定坐标
@@ -424,10 +420,10 @@ end};
 
 --通过正则表达式查询玩家并设置该玩家的生命值
 IKit.Command["health"] = {condition = "IKit.health",behavior = function(player,args)
-    IKit.Player:findFuzzy(args[1]).health = tonumber(args[2]);
+    IKit.Player:findFuzzy(args[1])[1].health = tonumber(args[2]);
 end};
 
 --通过正则表达式查询玩家并设置该玩家的护甲值
 IKit.Command["armor"] = {condition = "IKit.armor",behavior = function(player,args)
-    IKit.Player:findFuzzy(args[1]).armor = tonumber(args[2]);
+    IKit.Player:findFuzzy(args[1])[1].armor = tonumber(args[2]);
 end};
