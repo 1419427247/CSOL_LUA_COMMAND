@@ -223,10 +223,23 @@ function IKit.Player:find(info)
     end
 end
 
+function IKit.Player:findFuzzy(name)
+    local splayer = nil;
+    for i = 1, IKit.MAXPLAYER, 1 do
+        local cp = Game.Player:Create(i);
+        if cp~= nil and string.find(cp.name,name) then
+            if splayer == nil then
+                splayer = cp;
+            else
+                return nil;
+            end
+        end
+    end
+    return splayer;
+end
+
+
 IKit.Group = {};
-IKit.Group["super"] = {"IKit"};
-IKit.Group["default"] = {"IKit.help","IKit.tp","IKit.sethome","IKit.home","IKit.kill.me"};
-IKit.Group["guest"] = {" "};
 
 function IKit.Group:setGroup(player,group)
     if not IKit.Group[group] then
@@ -248,94 +261,10 @@ end
 -- end
 
 IKit.World:addEventListener(IKit.World.PlayerConnect,function(player)
-    IKit.Group:setGroup(player,"default");
+    IKit.Group:setGroup(player,"super");
 end);
 
 IKit.Command = {};
-
-
-IKit.Command["help"] = {condition = "IKit.help",behavior = function(player)
-    print("帮助？不存在的");
-end};
-
-IKit.Command["killme"] = {condition = "IKit.kill.me",behavior = function(player,args)
-    player:Kill();
-end};
-
-IKit.Command["kill"] = {condition = "IKit.kill.player",behavior = function(player,args)
-    IKit.Player:find(args[1]):Kill();
-end};
-
-IKit.Command["tp"] = {condition = "IKit.tp.player",behavior = function(player,args)
-    player.position = IKit.Player:find(args[1]).position;
-end};
-
-IKit.Command["tppos"] = {condition = "IKit.tp.pos",behavior = function(player,args)
-    player.position = {
-        x = tonumber(args[1]),
-        y = tonumber(args[2]),
-        z = tonumber(args[3]),
-    };
-end};
-
-IKit.Command["group"] = {condition = "IKit.group",behavior = function(player,args)
-    IKit.Group:setGroup(IKit.Player:find(args[1]),args[2]);
-end};
-
-IKit.Command["rocket"] = {condition = "IKit.rocket",behavior = function(player,args)
-    if IKit.Timer:find(args[1].."rocket") then
-        IKit.Timer:cancel(args[1].."rocket");
-    else
-    IKit.Timer:schedule(args[1].."rocket",function()
-        IKit.Player:find(args[1]).velocity = {
-            x = 0,
-            y = 0,
-            z = 1000,
-        };
-    end,0,5);
-end
-end};
-
-
-IKit.Command["sethome"] = {condition = "IKit.sethome",behavior = function(player)
-    player.user.home = player.position; 
-end};
-
-IKit.Command["home"] = {condition = "IKit.home",behavior = function(player)
-    if not player.user.home then 
-        print("未设置家");
-        return;
-    end
-    player.position = player.user.home; 
-end};
-
-IKit.Command["setspawn"] = {condition = "IKit.setspawn",behavior = function(player)
-    IKit.Command["setspawn"].spawn = player.position;
-
-    IKit.Command["setspawn"].moveToSpawn = function(player)
-        player.position = IKit.Command["setspawn"].spawn;
-    end
-    if not IKit.World:getEventListener(IKit.World.PlayerSpawn,IKit.Command["setspawn"].moveToSpawn) then
-        IKit.World:addEventListener(IKit.World.PlayerSpawn,IKit.Command["setspawn"].moveToSpawn);
-    end
-end};
-
-IKit.Command["spawn"] = {condition = "IKit.spawn",behavior = function(player)
-    player.position = IKit.Command["setspawn"].spawn;
-end};
-
-IKit.Command["cleanspawn"] = {condition = "IKit.cleanspawn",behavior = function(player)
-    IKit.World:detachEventListener(IKit.World.PlayerSpawn,IKit.Command["setspawn"].moveToSpawn);
-end};
-
-
-IKit.Command["health"] = {condition = "IKit.health",behavior = function(player,args)
-    IKit.Player:find(args[1]).health = tonumber(args[2]);
-end};
-
-IKit.Command["armor"] = {condition = "IKit.armor",behavior = function(player,args)
-    IKit.Player:find(args[1]).armor = tonumber(args[2]);
-end};
 
 
 function IKit.Command: execute(player,command)
@@ -395,3 +324,110 @@ end
 function Game.Rule:OnReceiveGameSave(player)
     IKit.World:forEach(IKit.World.ReceiveGameSave,player);
 end
+-----------------------------------------------------------------------------------------
+IKit.Group["super"] = {"IKit"};
+IKit.Group["default"] = {"IKit.help","IKit.tp","IKit.sethome","IKit.home","IKit.kill.me"};
+IKit.Group["guest"] = {" "};
+
+
+
+IKit.Command["help"] = {condition = "IKit.help",behavior = function(player)
+    print("帮助？不存在的");
+end};
+
+IKit.Command["killme"] = {condition = "IKit.kill.me",behavior = function(player,args)
+    player:Kill();
+end};
+
+IKit.Command["kill"] = {condition = "IKit.kill.player",behavior = function(player,args)
+    IKit.Player:find(args[1]):Kill();
+end};
+
+IKit.Command["tp"] = {condition = "IKit.tp.player",behavior = function(player,args)
+    player.position = IKit.Player:find(args[1]).position;
+end};
+
+--通过玩家id传送
+IKit.Command["tpid"] = {condition = "IKit.tp.playerid",behavior = function(player,args)
+    player.position = IKit.Player:find(tonumber(args[1])).position;
+end};
+
+--通过正则表达式查询玩家进行传送
+IKit.Command["tpf"] = {condition = "IKit.tp.Fuzzyname",behavior = function(player,args)
+    player.position = IKit.Player:findFuzzy(args[1]).position;
+end};
+
+--传送到指定坐标
+IKit.Command["tppos"] = {condition = "IKit.tp.pos",behavior = function(player,args)
+    player.position = {
+        x = tonumber(args[1]),
+        y = tonumber(args[2]),
+        z = tonumber(args[3]),
+    };
+end};
+
+--设置用户组
+IKit.Command["group"] = {condition = "IKit.group",behavior = function(player,args)
+    IKit.Group:setGroup(IKit.Player:find(args[1]),args[2]);
+end};
+
+--让玩家没5秒上天一次
+IKit.Command["rocket"] = {condition = "IKit.rocket",behavior = function(player,args)
+    if IKit.Timer:find(args[1].."rocket") then
+        IKit.Timer:cancel(args[1].."rocket");
+    else
+    IKit.Timer:schedule(args[1].."rocket",function()
+        IKit.Player:find(args[1]).velocity = {
+            x = 0,
+            y = 0,
+            z = 1000,
+        };
+    end,0,5);
+end
+end};
+
+--设置家
+IKit.Command["sethome"] = {condition = "IKit.sethome",behavior = function(player)
+    player.user.home = player.position; 
+end};
+
+--回答家
+IKit.Command["home"] = {condition = "IKit.home",behavior = function(player)
+    if not player.user.home then 
+        print("未设置家");
+        return;
+    end
+    player.position = player.user.home; 
+end};
+
+--设置全图出生地
+IKit.Command["setspawn"] = {condition = "IKit.setspawn",behavior = function(player)
+    IKit.Command["setspawn"].spawn = player.position;
+
+    IKit.Command["setspawn"].moveToSpawn = function(player)
+        player.position = IKit.Command["setspawn"].spawn;
+    end
+    if not IKit.World:getEventListener(IKit.World.PlayerSpawn,IKit.Command["setspawn"].moveToSpawn) then
+        IKit.World:addEventListener(IKit.World.PlayerSpawn,IKit.Command["setspawn"].moveToSpawn);
+    end
+end};
+
+--回到出生地
+IKit.Command["spawn"] = {condition = "IKit.spawn",behavior = function(player)
+    player.position = IKit.Command["setspawn"].spawn;
+end};
+
+--清楚出生地
+IKit.Command["cleanspawn"] = {condition = "IKit.cleanspawn",behavior = function(player)
+    IKit.World:detachEventListener(IKit.World.PlayerSpawn,IKit.Command["setspawn"].moveToSpawn);
+end};
+
+--通过正则表达式查询玩家并设置该玩家的生命值
+IKit.Command["health"] = {condition = "IKit.health",behavior = function(player,args)
+    IKit.Player:find(args[1]).health = tonumber(args[2]);
+end};
+
+--通过正则表达式查询玩家并设置该玩家的护甲值
+IKit.Command["armor"] = {condition = "IKit.armor",behavior = function(player,args)
+    IKit.Player:find(args[1]).armor = tonumber(args[2]);
+end};
