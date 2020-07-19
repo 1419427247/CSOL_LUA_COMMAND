@@ -284,11 +284,20 @@ end)();
     end
     
     function String:toNumber()
-        tonumber(self:toString());
+        return tonumber(self:toString());
     end
 
     function String:toString()
         return table.concat(self.array);
+    end
+
+    function String:equals(value)
+        local t = IKit.TypeOf(value);
+        if t == "String" then
+            return self == value;
+        elseif t == "string" then
+            return self:toString() == value;
+        end
     end
 
     function String:__len()
@@ -296,14 +305,15 @@ end)();
     end
 
     function String:__eq(value)
-        return self.length == value.length and function()
-            for i = 1, self.length, 1 do
-                if self.array[i] ~= value.array[i] then
-                    return false;
-                end
-            end
-            return true;
+        if self.length ~= value.length then
+            return false;
         end
+        for i = 1, self.length, 1 do
+            if self.array[i] ~= value.array[i] then
+                return false;
+            end
+        end
+        return true;
     end
 
     function String:__add(value)
@@ -377,275 +387,6 @@ end)();
     end
 
     IKit.Class(Event,"Event");
-end)();
-
-(function()
-    local Timer = {};
-
-    function Timer:constructor()
-        self.id = 1;
-        self.task = {};
-        Event:addEventListener("OnUpdate",function(time)
-            self:OnUpdate(time);
-        end);
-    end
-
-    function Timer:OnUpdate(time)
-        for key, value in pairs(self.task) do
-            if value.time < time then
-                local b,m = pcall(value.func);
-                if not b then
-                    self.task[key] = nil;
-                    print("Timer:ID为:[" .. key .. "]的函数发生了异常");
-                    print(m);
-                elseif value.period == nil then
-                    self.task[key] = nil;
-                else
-                    value.time = time + value.period;
-                end
-            end
-        end
-    end
-
-    function Timer:schedule(fun,delay,period)
-        if Game ~= nil then
-            self.task[self.id] = {func = fun,time = Game.GetTime() + delay,period = period};
-        end
-        if UI ~= nil then
-            self.task[self.id] = {func = fun,time = UI.GetTime() + delay,period = period};
-        end
-        self.id = self.id + 1;
-        return self.id - 1;
-    end
-
-    function Timer:cancel(id)
-        self.task[id] = nil;
-    end
-    
-    function Timer:purge()
-        self.task = {}
-    end
-
-    IKit.Class(Timer,"Timer");
-end)();
-
-local Group  = {
-    default = 0,
-    administrator = 1,
-}
-
-(function()
-    local ServerCommand = {};
-    
-    function ServerCommand:constructor()
-
-        self.sendbuffer = {};
-        self.receivbBuffer = {};
-        self.methods = {};
-
-        self.message = Game.SyncValue:Create("Message");
-        local OnPlayerSignalId = 0;
-        local OnUpdateId = 0;
-        function self:connection()
-            OnUpdateId = Event:addEventListener("OnUpdate",function()
-                self:OnUpdate();
-            end);
-            OnPlayerSignalId = Event:addEventListener("OnPlayerSignal",function(player,signal)
-                self:OnPlayerSignal(player,signal);
-            end);
-
-            Event:addEventListener("OnPlayerConnect",function(player)
-                player.user.group = Group.default;
-            end);
-        end
-        function self:disconnect()
-            Event:detachEventListener("OnPlayerSignal",OnPlayerSignalId);
-            Event:detachEventListener("OnUpdate",OnUpdateId);
-        end
-        self:connection();
-    end
-
-    function ServerCommand:OnUpdate()
-        local k = 0;
-        while #self.sendbuffer > 0 do
-            while #self.sendbuffer[1][2] > 0 do
-                self.sendbuffer[1][1]:Signal(self.sendbuffer[1][2][1]);
-                table.remove(self.sendbuffer[1][2],1);
-                k = k + 1;
-                if k == 256 then
-                    return;
-                end
-            end
-            if #self.sendbuffer[1][2] == 0 then
-                table.remove(self.sendbuffer,1);
-            end
-        end
-    end
-
-    function ServerCommand:OnPlayerSignal(player,signal)
-        if signal == 4 then
-            local command = IKit.New("String",self.receivbBuffer[player.name]);
-            local args = {IKit.New("String")};
-            for i = 1, command.length, 1 do
-                if command:charAt(i) == ' ' then
-                    if args[#args].length > 0 then
-                        table.insert(args,IKit.New("String"));
-                    end
-                else
-                    args[#args]:insert(command:charAt(i));
-                end
-            end
-            if args[#args].length == 0 then
-                table.remove(args,#args);
-            end
-            self:execute(player,args);
-            self.receivbBuffer[player.name] = {};
-        else
-            if self.receivbBuffer[player.name] == nil then
-                self.receivbBuffer[player.name] = {};
-            end
-            table.insert(self.receivbBuffer[player.name],signal);
-        end
-    end
-
-    function ServerCommand:register(name,group,fun)
-        self.methods[name] ={group,fun};
-    end
-
-    function ServerCommand:sendMessage(message,player)
-        if player == nil then
-            self.message.value = message;
-        else
-            local message = IKit.New("String",message);
-            local bytes = message:toBytes();
-            table.insert(bytes,4);
-            table.insert(self.sendbuffer,{player,bytes});
-        end
-    end
-
-
-    function ServerCommand:execute(player,args)
-        local name = args[1];
-        table.remove(args,1);
-        local b,m = pcall(function()
-            if not self.methods[name:toString()] then
-                print("没有指令:/"..name:toString());
-                return;
-            end
-            if self.methods[name:toString()][1] < player.user.group then
-                self.methods[name:toString()][2](player,args);
-            else
-                print("权限不足:/"..name:toString());
-            end
-        end);
-        if not b then
-            print("在执行'" .. name:toString() .. "'命令时发生异常");
-            print(m);
-        end
-    end
-    IKit.Class(ServerCommand,"ServerCommand");
-end)();
-
-(function()
-    local  ClientCommand = {};
-    
-    function ClientCommand:constructor()
-
-        self.sendbuffer = {};
-        self.receivbBuffer = {};
-        self.methods = {};
-
-        self.message = UI.SyncValue:Create("Message");
-        local OnSignalId = 0;
-        local OnUpdateId = 0;
-        local OnChatId = 0;
-        function self:connection()
-            OnSignalId = Event:addEventListener("OnSignal",function(signal)
-                self:OnSignal(signal);
-            end);
-            OnUpdateId = Event:addEventListener("OnUpdate",function()
-                self:OnUpdate();
-            end);
-            OnChatId = Event:addEventListener("OnChat",function(text)
-                self:OnChat(text);
-            end);
-        end
-        function self:disconnect()
-            Event:detachEventListener("OnSignal",OnSignalId);
-            Event:detachEventListener("OnUpdate",OnUpdateId);
-            Event:detachEventListener("OnUpdate",OnChatId);
-        end
-        function self.message.OnSync(table)
-            print(self.message.value)
-            self:execute({IKit.New("String",self.message.value)});
-        end
-        self:connection();
-    end
-
-    function ClientCommand:OnUpdate()
-        local i = 0;
-        while #self.sendbuffer > 0 do
-            UI.Signal(self.sendbuffer[1]);
-            table.remove(self.sendbuffer,1);
-            i = i + 1;
-            if i == 6 then
-                return;
-            end
-        end
-    end
-
-    function ClientCommand:OnSignal(signal)
-        if signal == 4 then
-            local command = IKit.New("String",self.receivbBuffer);
-            local args = {IKit.New("String")};
-            for i = 1, command.length, 1 do
-                if command:charAt(i) == ' ' then
-                    if args[#args].length > 0 then
-                        table.insert(args,IKit.New("String"));
-                    end
-                else
-                    args[#args]:insert(command:charAt(i));
-                end
-            end
-            if args[#args].length == 0 then
-                table.remove(args,#args);
-            end
-            self:execute(args);
-            self.receivbBuffer = {};
-        else
-            table.insert(self.receivbBuffer,signal);
-        end
-    end
-
-    function ClientCommand:OnChat(text)
-        print(text);
-        if string.sub(text,1,1) == '/' and #text > 1 then
-            self:sendMessage(string.sub(text,2,#text));
-        end
-    end
-
-    function ClientCommand:register(name,fun)
-        self.methods[name] = fun;
-    end
-
-    function ClientCommand:sendMessage(message)
-        local message = IKit.New("String",message)
-        local bytes = message:toBytes();
-        for i = 1, #bytes, 1 do
-            table.insert(self.sendbuffer,bytes[i]);
-        end
-        table.insert(self.sendbuffer,4);
-    end
-
-    function ClientCommand:execute(args)
-        local name = args[1];
-        table.remove(args,1);
-        if pcall(self.methods[name:toString()],args) == false then
-            print("在执行'" .. name:toString() .. "'命令时发生异常");
-        end
-    end
-
-    IKit.Class(ClientCommand,"ClientCommand");
 end)();
 
 Event = IKit.New("Event");
@@ -813,26 +554,821 @@ if UI~=nil then
     end
 end
 
+(function()
+    local Timer = {};
+
+    function Timer:constructor()
+        self.id = 1;
+        self.task = {};
+        Event:addEventListener("OnUpdate",function(time)
+            self:OnUpdate(time);
+        end);
+    end
+
+    function Timer:OnUpdate(time)
+        for key, value in pairs(self.task) do
+            if value.time < time then
+                local b,m = pcall(value.func);
+                if not b then
+                    self.task[key] = nil;
+                    print("Timer:ID为:[" .. key .. "]的函数发生了异常");
+                    print(m);
+                elseif value.period == nil then
+                    self.task[key] = nil;
+                else
+                    value.time = time + value.period;
+                end
+            end
+        end
+    end
+
+    function Timer:schedule(fun,delay,period)
+        if Game ~= nil then
+            self.task[self.id] = {func = fun,time = Game.GetTime() + delay,period = period};
+        end
+        if UI ~= nil then
+            self.task[self.id] = {func = fun,time = UI.GetTime() + delay,period = period};
+        end
+        self.id = self.id + 1;
+        return self.id - 1;
+    end
+
+    function Timer:cancel(id)
+        self.task[id] = nil;
+    end
+    
+    function Timer:purge()
+        self.task = {}
+    end
+
+    IKit.Class(Timer,"Timer");
+end)();
+
 Timer = IKit.New("Timer");
+
+(function()
+    local Player = {};
+
+    function Player:constructor()
+        self.map = {};
+
+        Event:addEventListener("OnPlayerConnect",function(player)
+            self.map[player.name] = player;
+            player.user.memory = {};
+        end);
+
+        Event:addEventListener("OnPlayerDisconnect",function(player)
+            self.map[player.name] = nil;
+        end);
+    end
+
+    function Player:killAllPlayers()
+        for _,value in pairs(self.map) do
+            value:Kill();
+        end
+    end
+
+    function Player:showBuymenu()
+        for _,value in pairs(self.map) do
+            value:ShowBuymenu();
+        end
+    end
+
+    function Player:getPlayerByIndex(index)
+        for key, value in pairs(self.map) do
+            if value.index == index then
+                return value;
+            end
+        end
+    end
+
+    function Player:getPlayerByName(name,enable)
+        if enable then
+            for key, value in pairs(self.map) do
+                if(string.find(key,name)) then
+                    return value;
+                end
+            end
+        else
+            return self.map[name];
+        end
+    end
+
+    IKit.Class(Player,"Player");
+end)();
+
+if Game then
+    Player = IKit.New("Player");
+end
+
+local Group  = {
+    none = -1,
+    default = 0,
+    administrator = 1,
+};
+
+(function()
+    local ServerCommand = {};
+    
+    function ServerCommand:constructor(config)
+        print()
+        self.safeMode = config["安全模式"];
+        self.maximumNumberOfBytes = config["每帧最大发送字节数"];
+        self.spacer = config["间隔符"];
+        self.useGroup = config["启用用户组"];
+        self.DefaultUserGroup = config["默认用户组"];
+
+        self.sendBuffer = {};
+        self.receivbBuffer = {};
+        self.methods = {};
+        
+        self.message = Game.SyncValue:Create("Message");
+        
+
+        if self.useGroup then
+            Event:addEventListener("OnPlayerConnect",function(player)
+                player.user.group = self.DefaultUserGroup;
+            end);
+        end
+
+        local OnPlayerSignalId = 0;
+        local OnUpdateId = 0;
+        function self:connection()
+            OnUpdateId = Event:addEventListener("OnUpdate",function()
+                self:OnUpdate();
+            end);
+            OnPlayerSignalId = Event:addEventListener("OnPlayerSignal",function(player,signal)
+                self:OnPlayerSignal(player,signal);
+            end);
+        end
+        function self:disconnect()
+            Event:detachEventListener("OnPlayerSignal",OnPlayerSignalId);
+            Event:detachEventListener("OnUpdate",OnUpdateId);
+        end
+        self:connection();
+    end
+
+    function ServerCommand:OnUpdate()
+        local k = 0;
+        while #self.sendBuffer > 0 do
+            while #self.sendBuffer[1][2] > 0 do
+                self.sendBuffer[1][1]:Signal(self.sendBuffer[1][2][1]);
+                table.remove(self.sendBuffer[1][2],1);
+                k = k + 1;
+                if k == self.maximumNumberOfBytes then
+                    return;
+                end
+            end
+            if #self.sendBuffer[1][2] == 0 then
+                table.remove(self.sendBuffer,1);
+            end
+        end
+    end
+
+    function ServerCommand:OnPlayerSignal(player,signal)
+        if signal == 4 then
+            local command = IKit.New("String",self.receivbBuffer[player.name]);
+            local args = {IKit.New("String")};
+            for i = 1, command.length, 1 do
+                if command:charAt(i) == self.spacer then
+                    if args[#args].length > 0 then
+                        table.insert(args,IKit.New("String"));
+                    end
+                else
+                    args[#args]:insert(command:charAt(i));
+                end
+            end
+            if args[#args].length == 0 then
+                table.remove(args,#args);
+            end
+            self:execute(player,args);
+            self.receivbBuffer[player.name] = {};
+        else
+            if self.receivbBuffer[player.name] == nil then
+                self.receivbBuffer[player.name] = {};
+            end
+            table.insert(self.receivbBuffer[player.name],signal);
+        end
+    end
+
+    function ServerCommand:register(name,group,fun)
+        self.methods[name] ={group,fun};
+    end
+
+    function ServerCommand:sendMessage(message,player)
+        if player == nil then
+            self.message.value = message;
+        else
+            local message = IKit.New("String",message);
+            local bytes = message:toBytes();
+            table.insert(bytes,4);
+            table.insert(self.sendBuffer,{player,bytes});
+        end
+    end
+
+
+    function ServerCommand:execute(player,args)
+        local name = args[1];
+        table.remove(args,1);
+
+        if not self.methods[name:toString()] then
+            print("没有指令:"..name:toString());
+            return;
+        end
+
+        if self.useGroup then
+            if self.methods[name:toString()][1] > player.user.group then
+                print("权限不足:"..name:toString());
+                return;
+            end
+        end
+        
+        for i = 1,#args do
+            if args[i]:charAt(1) == "$" then
+                args[i] = player.user.memory[args[i]:substring(2,args[i].length):toString()];
+            end
+        end
+        if self.safeMode then
+            local a,b = pcall(self.methods[name:toString()][2],player,args);
+            if not a then
+                print("在执行'" .. name:toString() .. "'命令时发生异常");
+                print(b);
+            end
+        else
+            self.methods[name:toString()][2](player,args);
+        end 
+              
+    end
+    IKit.Class(ServerCommand,"ServerCommand");
+end)();
+
+(function()
+    local  ClientCommand = {};
+    
+    function ClientCommand:constructor(config)
+
+        self.safeMode = config["安全模式"];
+        self.maximumNumberOfBytes = config["每帧最大发送字节数"];
+        self.startCharacter = config["起始符"];
+        self.spacer = config["间隔符"];
+
+
+        self.sendBuffer = {};
+        self.receivbBuffer = {};
+        self.methods = {};
+
+        self.message = UI.SyncValue:Create("Message");
+        local OnSignalId = 0;
+        local OnUpdateId = 0;
+        local OnChatId = 0;
+        function self:connection()
+            OnSignalId = Event:addEventListener("OnSignal",function(signal)
+                self:OnSignal(signal);
+            end);
+            OnUpdateId = Event:addEventListener("OnUpdate",function()
+                self:OnUpdate();
+            end);
+            OnChatId = Event:addEventListener("OnChat",function(text)
+                self:OnChat(text);
+            end);
+        end
+        function self:disconnect()
+            Event:detachEventListener("OnSignal",OnSignalId);
+            Event:detachEventListener("OnUpdate",OnUpdateId);
+            Event:detachEventListener("OnUpdate",OnChatId);
+        end
+        function self.message.OnSync(table)
+            self:execute({IKit.New("String",self.message.value)});
+        end
+        self:connection();
+    end
+
+    function ClientCommand:OnUpdate()
+        local i = 0;
+        while #self.sendBuffer > 0 do
+            UI.Signal(self.sendBuffer[1]);
+            table.remove(self.sendBuffer,1);
+            i = i + 1;
+            if i == self.maximumNumberOfBytes then
+                return;
+            end
+        end
+    end
+
+    function ClientCommand:OnSignal(signal)
+        if signal == 4 then
+            local command = IKit.New("String",self.receivbBuffer);
+            local args = {IKit.New("String")};
+            for i = 1, command.length, 1 do
+                if command:charAt(i) == self.spacer then
+                    if args[#args].length > 0 then
+                        table.insert(args,IKit.New("String"));
+                    end
+                else
+                    args[#args]:insert(command:charAt(i));
+                end
+            end
+            if args[#args].length == 0 then
+                table.remove(args,#args);
+            end
+            self:execute(args);
+            self.receivbBuffer = {};
+        else
+            table.insert(self.receivbBuffer,signal);
+        end
+    end
+
+    function ClientCommand:OnChat(text)
+        if string.sub(text,1,#self.startCharacter) == self.startCharacter and #text > #self.startCharacter then
+            self:sendMessage(string.sub(text,#self.startCharacter + 1,#text));
+        end
+    end
+
+    function ClientCommand:register(name,fun)
+        self.methods[name] = fun;
+    end
+
+    function ClientCommand:sendMessage(message)
+        local message = IKit.New("String",message)
+        local bytes = message:toBytes();
+        for i = 1, #bytes, 1 do
+            table.insert(self.sendBuffer,bytes[i]);
+        end
+        table.insert(self.sendBuffer,4);
+    end
+
+    function ClientCommand:execute(args)
+        local name = args[1];
+        table.remove(args,1);
+
+        if self.safeMode then
+            if pcall(self.methods[name:toString()],args) == false then
+                print("在执行'" .. name:toString() .. "'命令时发生异常");
+            end
+        else
+            self.methods[name:toString()](args);
+        end
+    end
+    IKit.Class(ClientCommand,"ClientCommand");
+end)();
 
 if Game ~= nil then
 
-    Command = IKit.New("ServerCommand");
 
-    Command:register("自杀",Group.default,function(player,args)
-        player:Kill();
-    end)
-    
-    Command:register("冻结",Group.administrator,function(player,args)
-        Command:sendMessage("stop");
-    end)
 
+    Command = IKit.New("ServerCommand",{
+        ["安全模式"] = false,
+        ["每帧最大发送字节数"] = 64,
+        ["间隔符"] = " ",
+        ["启用用户组"] = false,
+        ["默认用户组"] = Group.default,
+    });
+
+    --/! [$VariableName(string) or Expression]
+    Command:register("!",Group.administrator,function(player,args)
+        SELF = player;
+        if #args == 1 then
+            if(IKit.TypeOf(args[1]) == "String") then
+                load(args[1]:toString())();
+            else
+                load(args[1])();
+            end
+        else
+            local str = IKit.New("String");
+            for i = 1,#args do
+                str:insert(args[i]);
+                str:insert(" ");
+            end
+            load(str:toString())();
+        end
+    end);
+
+    --/$ [$VariableName] [Expression]
+    Command:register("$",Group.default,function(player,args)
+        if #args == 2 then
+            if IKit.TypeOf(args[2]) == "String" then
+                args[2]:insert("return ",1);
+                player.user.memory[args[1]:toString()] = load(args[2]:toString())();
+            else
+                player.user.memory[args[1]:toString()] = args[2];
+            end
+        elseif #args > 2 then
+            local str = IKit.New("String","return ");
+            for i = 2,#args do
+                str:insert(args[i]);
+                str:insert(" ");
+            end
+            player.user.memory[args[1]:toString()] = load(str:toString())();
+        end
+        print(player.name .. ":" .. args[1]:toString());
+        print(player.user.memory[args[1]:toString()]);
+        print("--------------------");
+    end);
+
+    --/$pos [VariableName]
+    Command:register("$pos",Group.default,function(player,args)
+        player.user.memory[args[1]:toString()] = {
+            x = player.position.x,
+            y = player.position.y,
+            z = player.position.z,
+        };
+        print(player.name .. ":" .. args[1]:toString());
+        print("x:" .. player.position.x);
+        print("y:" .. player.position.y);
+        print("z:" .. player.position.z);
+        print("--------------------");
+    end);
+
+    --/$playerpos [VariableName] [Name]
+    Command:register("$playerpos",Group.default,function(player,args)
+        local p = Player:getPlayerByName(args[2]:toString(),true);
+        if p == nil then
+            print("没有找到该玩家");
+            return;
+        end
+        player.user.memory[args[1]:toString()] = {
+            x = p.position.x,
+            y = p.position.y,
+            z = p.position.z,
+        };
+        print(player.name .. ":" .. args[1]:toString());
+        print("x:" .. player.position.x);
+        print("y:" .. player.position.y);
+        print("z:" .. player.position.z);
+        print("--------------------");
+    end);
+
+    --/$player [VariableName] [Name]
+    Command:register("$player",Group.default,function(player,args)
+        player.user.memory[args[1]:toString()] = Player:getPlayerByName(args[2]:toString(),true);
+        print(player.name .. ":" .. args[1]:toString());
+        print("姓名:" .. player.user.memory[args[1]:toString()].name);
+        print("序号:" .. player.user.memory[args[1]:toString()].index);
+        print("--------------------");
+    end);
+
+    --/group [$VariableName(userdata) or Name] [Group]
+    Command:register("group",Group.administrator,function(player,args)
+        if #args == 1 then
+            player.user.group = Group[args[1]];
+        elseif #args == 2 then
+            if IKit.TypeOf(args[1]) == "String" then
+                local p = Player:getPlayerByName(args[1]:toString(),true);
+                if p == nil then
+                    print("没有找到玩家");
+                    return;
+                end
+                p.user.group = Group[args[1]];
+            else
+                args[1].user.group = Group[args[1]];
+            end
+        end
+    end);
+
+    --/tp [$VariableName(userdata) or Name]
+    Command:register("tp",Group.default,function(player,args)
+        if IKit.TypeOf(args[1]) == "String" then
+            player.position = Player:getPlayerByName(args[1]:toString(),true).position;
+        else
+            player.position = args[1].position;
+        end
+    end);
+
+    --/tppos [$VariableName(table)]
+    --/tppos [X] [Y] [Z]
+    Command:register("tppos",Group.default,function(player,args)
+        if #args == 1 then
+            if IKit.TypeOf(args[1]) == "table" then
+                player.position = args[1];
+            end
+        elseif #args == 3 then
+            player.position = {
+                x = args[1]:toNumber(),
+                y = args[2]:toNumber(),
+                z = args[3]:toNumber(),
+            };
+        end
+    end);
+
+    --/sethome
+    --/sethome [$VariableName(table)]
+    --/sethome [X] [Y] [Z]
+    Command:register("sethome",Group.default,function(player,args)
+        if #args == 0 then
+            player.user.home = {
+                x = player.position.x,
+                y = player.position.y,
+                z = player.position.z,
+            };
+        elseif #args == 1 then
+            player.user.home = args[1];
+        elseif #args == 3 then
+            player.user.home = {
+                x = args[1]:toNumber();
+                y = args[2]:toNumber();
+                z = args[3]:toNumber();
+            };
+        end
+    end);
+
+    --/home
+    Command:register("home",Group.default,function(player,args)
+        player.user.home = player.user.home or player.position;
+        player.position = player.user.home;
+    end);
+
+    --/setplayer [$VariableName(userdata) or Name] [Key] [$VariableName or Value]
+    Command:register("setplayer",Group.default,function(player,args)
+        local p;
+        if IKit.TypeOf(args[1]) == "String" then
+            p = Player:getPlayerByName(args[1]:toString(),true);
+            if p == nil then
+                print("没有找到玩家");
+                return;
+            end
+        else
+            p = args[1];
+        end
+
+        if p[args[2]:toString()] == nil then
+            print("没有属性:" .. args[2]:toString());
+            return;
+        end
+
+        if IKit.TypeOf(args[3]) == "String" then
+            p[args[2]:toString()] = args[3]:toNumber();
+        else
+            p[args[2]:toString()] = args[3];
+        end
+    end);
+
+    --/kill
+    --/kill [* or Name or $VariableName(userdata)]
+    Command:register("kill",Group.administrator,function(player,args)
+        if #args == 0 then
+            player:Kill();
+        elseif #args == 1 then
+            if IKit.TypeOf(args[1]) == "String" then
+                if args[1]:equals("*") then
+                    Player:killAllPlayers();
+                else
+                    local p = Player:getPlayerByName(args[1]:toString(),true);
+                    if p == nil then
+                        print("没有找到玩家");
+                        return;
+                    end
+                    p:Kill();
+                end
+            else
+                args[1]:Kill();
+            end
+        end
+    end);
+
+    --/freeze
+    --/freeze [* or Name or $VariableName(userdata)]
+    Command:register("freeze",Group.administrator,function(player,args)
+        if #args == 0 then
+            Command:sendMessage("freeze",player);
+        elseif #args == 1 then
+            if IKit.TypeOf(args[1]) == "String" then
+                if args[1]:equals("*") then
+                    Command:sendMessage("freeze");
+                else
+                    local p = Player:getPlayerByName(args[1]:toString(),true);
+                    if p == nil then
+                        print("没有找到玩家");
+                        return;
+                    end
+                    Command:sendMessage("freeze",p);
+                end
+            else
+                Command:sendMessage("freeze",args[1]);
+            end
+        end
+    end);
+
+    --/unfreeze
+    --/unfreeze [* or Name or $VariableName(userdata)]
+    Command:register("unfreeze",Group.administrator,function(player,args)
+        if #args == 0 then
+            Command:sendMessage("unfreeze",player);
+        elseif #args == 1 then
+            if IKit.TypeOf(args[1]) == "String" then
+                if args[1]:equals("*") then
+                    Command:sendMessage("unfreeze");
+                else
+                    local p = Player:getPlayerByName(args[1]:toString(),true);
+                    if p == nil then
+                        print("没有找到玩家");
+                        return;
+                    end
+                    Command:sendMessage("unfreeze",p);
+                end
+            else
+                Command:sendMessage("unfreeze",args[1]);
+            end
+        end
+    end);
+
+    Command:register("removeweapon",Group.administrator,function(player,args)
+        player:RemoveWeapon();
+    end);
+
+    --/setview
+    --/setview [$VariableName(userdata) or Name]
+    --/setview [MinDist] [MaxDist]
+    --/setview [$VariableName(userdata) or Name] [MinDist] [MaxDist]
+    Command:register("setview",Group.administrator,function(player,args)
+        if #args == 0 then
+            player:SetFirstPersonView();
+        elseif #args == 1 then
+            if IKit.TypeOf(args[1]) == "String" then
+                local p = Player:getPlayerByName(args[1]:toString(),true);
+                if p == nil then
+                    print("没有找到玩家");
+                    return;
+                end
+                p:SetFirstPersonView();
+            else
+                args[1]:SetFirstPersonView();
+            end
+        elseif #args == 2 then
+            player:SetThirdPersonView (args[1]:toNumber(),args[2]:toNumber());
+        elseif #args == 3 then
+            if IKit.TypeOf(args[1]) == "String" then
+                local p = Player:getPlayerByName(args[1]:toString(),true);
+                if p == nil then
+                    print("没有找到玩家");
+                    return;
+                end
+                p:SetThirdPersonView (args[2]:toNumber(),args[3]:toNumber());
+            else
+                args[1]:SetThirdPersonView (args[2]:toNumber(),args[3]:toNumber());
+            end
+        end
+    end);
+
+    --/showbuymenu
+    --/showbuymenu [$VariableName(userdata) or Name]
+    Command:register("showbuymenu",Group.administrator,function(player,args)
+        if #args == 0 then
+            player:ShowBuymenu();
+        elseif #args == 1 then
+            if IKit.TypeOf(args[1]) == "String" then
+                if args[1]:equals("*") then
+                    Player:showBuymenu();
+                else
+                    local p = Player:getPlayerByName(args[1]:toString(),true);
+                    if p == nil then
+                        print("没有找到玩家");
+                        return;
+                    end
+                    p:ShowBuymenu();
+                end
+            else
+                args[1]:ShowBuymenu();
+            end
+        end
+    end);
+
+    --/respawn [$VariableName(userdata) or Name]
+    Command:register("respawn",Group.administrator,function(player,args)
+        if #args == 0 then
+            player:Respawn();
+        elseif #args == 1 then
+            if IKit.TypeOf(args[1]) == "String" then
+                if args[1]:equals("*") then
+                    Game.Rule:Respawn();
+                else
+                    local p = Player:getPlayerByName(args[1]:toString(),true);
+                    if p == nil then
+                        print("没有找到玩家");
+                        return;
+                    end
+                    p:Respawn();
+                end
+            else
+                args[1]:Respawn();
+            end
+        end
+    end);
+
+    --/respawn [$VariableName(boolean) or true or false]
+    Command:register("respawnable",Group.administrator,function(player,args)
+        if IKit.TypeOf(args[1]) == "String" then
+            if args[1]:equals("true") then
+                Game.Rule.respawnable = true;
+            elseif args[1]:equals("false") then
+                Game.Rule.respawnable = false;
+            end
+        else
+            Game.Rule.respawnable = args[1];
+        end
+    end);
+
+    --/respawntime [$VariableName(number) or time]
+    Command:register("respawntime",Group.administrator,function(player,args)
+        if IKit.TypeOf(args[1]) == "String" then
+            Game.Rule.respawnTime = args[1]:toNumber();
+        else
+            Game.Rule.respawnTime = args[1];
+        end
+    end);
+
+    --/respawn [$VariableName(boolean) or true or false]
+    Command:register("enemyfire",Group.administrator,function(player,args)
+        if IKit.TypeOf(args[1]) == "String" then
+            if args[1]:equals("true") then
+                Game.Rule.enemyfire = true;
+            elseif args[1]:equals("false") then
+                Game.Rule.enemyfire = false;
+            end
+        else
+            Game.Rule.enemyfire = args[1];
+        end
+    end);
+
+    --/friendlyfire [$VariableName(boolean) or true or false]
+    Command:register("friendlyfire",Group.administrator,function(player,args)
+        if IKit.TypeOf(args[1]) == "String" then
+            if args[1]:equals("true") then
+                Game.Rule.friendlyfire = true;
+            elseif args[1]:equals("false") then
+                Game.Rule.friendlyfire = false;
+            end
+        else
+            Game.Rule.friendlyfire = args[1];
+        end
+    end);
+
+    --/breakable [$VariableName(boolean) or true or false]
+    Command:register("breakable",Group.administrator,function(player,args)
+        if IKit.TypeOf(args[1]) == "String" then
+            if args[1]:equals("true") then
+                Game.Rule.breakable = true;
+            elseif args[1]:equals("false") then
+                Game.Rule.breakable = false;
+            end
+        else
+            Game.Rule.breakable = args[1];
+        end
+    end);
+
+    --/rendercolor [$VariableName(table)]
+    --/rendercolor [$VariableName(table) or Name] [$VariableName(table)]
+    --/rendercolor [Red] [Green] [Blue]
+    --/rendercolor [$VariableName(table) or Name] [Red] [Green] [Blue]
+    Command:register("rendercolor",Group.administrator,function(player,args)
+        if #args == 1 then
+            player:SetRenderColor(args[1]);
+        elseif #args == 2 then
+            if IKit.TypeOf(args[1]) == "String" then
+                local p = Player:getPlayerByName(args[1]:toString(),true);
+                if p == nil then
+                    print("没有找到玩家");
+                    return;
+                end
+                p:SetRenderColor(args[2]);
+            else
+                args[1]:SetRenderColor(args[2]);
+            end
+        elseif #args == 3 then
+            player:SetRenderColor({r = args[1]:toNumber(),g = args[2]:toNumber(),b = args[3]:toNumber()});
+        elseif #args == 4 then
+            if IKit.TypeOf(args[1]) == "String" then
+                local p = Player:getPlayerByName(args[1]:toString(),true);
+                if p == nil then
+                    print("没有找到玩家");
+                    return;
+                end
+                p:SetRenderColor({r = args[2]:toNumber(),g = args[3]:toNumber(),b = args[4]:toNumber()});
+            else
+                args[1]:SetRenderColor({r = args[2]:toNumber(),g = args[3]:toNumber(),b = args[4]:toNumber()});
+            end
+        end
+    end);
+
+    Command:register("setrenderfx",Group.administrator,function(player,args)
+        player:SetRenderFX(Game.RENDERFX.GLOWSHELL);
+    end);
 end
 
 if UI ~= nil then
-    Command = IKit.New("ClientCommand");
+    Command = IKit.New("ClientCommand",{
+        ["安全模式"] = true,
+        ["每帧最大发送字节数"] = 4,
+        ["起始符"] = "/",
+        ["间隔符"] = " ",
+    });
 
-    Command:register("stop",function(args)
+    Command:register("freeze",function(args)
         UI.StopPlayerControl(true);
     end);
+
+    Command:register("unfreeze",function(args)
+        UI.StopPlayerControl(false);
+    end);
+
+
 end
