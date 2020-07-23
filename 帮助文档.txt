@@ -319,7 +319,7 @@ false:假
 -------------------------------------
 /respawntime [$VariableName(number) or time]
 
-命令 /respawnable 玩家复活时间
+命令 /respawntime 玩家复活时间
 
 $VariableName(number):$变量名
 time:复活等待时间
