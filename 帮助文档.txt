@@ -1,0 +1,399 @@
+-------------------------------------
+使用函数pcall来包装需要执行的代码，以防止脚本停止运行
+["安全模式"] = true
+
+不用改，默认就行
+["每帧最大发送字节数"] = 32
+
+设置命令参数的间隔符，例如若将间隔符改为","那么输入命令应为"/xxx,arg1,arg2..."
+["间隔符"] = " "
+
+启用用户组，若为false则所有人都将可以使用任意命令
+["启用用户组"] = true
+
+设置默认用户组，当不在“用户列表”中的玩家的用户组将设置为Group.default
+["默认用户组"] = Group.default
+
+不用改，默认就行
+["打印操作信息"] = false
+
+设置初始玩家的用户组
+["用户列表"] = {
+    ["ipad水晶"] = Group.owner,
+    ["水晶菌"] = Group.permissiondog,
+    ["水晶怪"] = Group.default,
+    ["xxx"] = Group.none,
+}
+
+-------------------------------------
+-------------------------------------
+/$pos [VariableName]
+/$pos [VariableName] [$VariableName(userdata) or Name]
+/$pos [VariableName] [X] [Y] [Z]
+
+命令 /$pos 将位置信息(table)存到一个变量中
+
+VariableName:变量名
+Name:玩家名(模糊)
+X:x坐标
+Y:y坐标
+Z:z坐标
+
+例如:
+/$pos pos1 ipad水晶 || /$pos pos1 20 -3 32
+/tppos $pos1
+-------------------------------------
+-------------------------------------
+/$player [VariableName] [Name]
+
+命令 /$player 将玩家(userdata)存到一个变量中
+
+VariableName:变量名
+Name:玩家名(模糊)
+
+例如:
+/$player p ipad水晶
+/tp $p
+-------------------------------------
+-------------------------------------
+/$color [VariableName] [Red] [Green] [Blue]
+
+命令 /$pos 将颜色信息(table)存到一个变量中
+
+Red:红色(0~255)
+Green:绿色(0~255)
+Blue:蓝色(0~255)
+
+例如:
+/$color c 255 60 30
+-------------------------------------
+-------------------------------------
+/$string [VariableName] [String...]
+
+命令 /$string 将字符串(String)存到一个变量中
+
+String...:任意多个字符串
+
+例如:
+/$string str1 print('嘎嘎嘎')
+/! $str1
+-------------------------------------
+-------------------------------------
+/tp [$VariableName(userdata or String) or Name]
+
+命令 /tp 传送到指定的玩家的位置
+
+$VariableName(userdata or string):$变量名
+Name:玩家名(模糊)
+
+例如:
+/$string str1 ipad水晶
+/tp $str1
+-------------------------------------
+-------------------------------------
+/tppos [$VariableName(table)]
+/tppos [X] [Y] [Z]
+
+命令 /tppos 传送到指定的位置，如果无法到的则什么也不会发生
+
+$VariableName(table):$变量名
+X:x坐标
+Y:y坐标
+Z:z坐标
+
+例如:
+/$pos h
+/tppos $h
+-------------------------------------
+-------------------------------------
+/sethome
+
+命令 /sethome 设置当前位置为家
+
+例如:
+/sethome
+-------------------------------------
+-------------------------------------
+/home
+
+命令 /home 回到家
+
+例如:
+/sethome
+/home
+-------------------------------------
+-------------------------------------
+/place [Name]
+
+命令 /place 设置当前位置为一个公共的传送点
+
+Name:传送点名称
+
+例如:
+/place 点1
+-------------------------------------
+-------------------------------------
+/move [Name]
+
+命令 /move 移动到公共传送点
+
+Name:传送点名称
+
+例如:
+/place 点1
+/move 点1
+-------------------------------------
+-------------------------------------
+/help
+
+命令 /help 打印所有的命令名称
+-------------------------------------
+-------------------------------------
+/! [$VariableName(String) or String...]
+
+命令 /! 加载并运行指定的字符串
+
+$VariableName(String):$变量名
+String:任意多个字符串
+
+例如:
+/$string l1 for i=0,100 do print('我是iPad水晶'); print(i); end
+/! $l1
+-------------------------------------
+-------------------------------------
+/$ [VariableName] [String...]
+
+命令 /$ 
+
+VariableName:变量名
+String:任意多个字符串
+
+例如:
+/$ cp Player.map['ipad水晶'] || /$ cp "ipad" .. "水晶"
+/tp $cp
+-------------------------------------
+-------------------------------------
+/group [$VariableName(userdata or String) or Name] [Group]
+
+命令 /group 设置玩家用户组
+
+$VariableName(userdata or String):$变量名
+Name:玩家名(模糊)
+Group:用户组
+
+例如:
+/group 水晶 default
+-------------------------------------
+-------------------------------------
+/kill
+/kill [* or Name or $VariableName(userdata or String)]
+
+命令 /kill 杀死指定玩家
+
+*:代指所有玩家
+Name:玩家名(模糊)
+$VariableName(userdata or String):$变量名
+
+例如:
+/kill
+/kill *
+/kill ipad水晶
+-------------------------------------
+-------------------------------------
+/freeze
+/freeze [* or Name or $VariableName(userdata or String)]
+
+命令 /freeze 冻结玩家
+
+*:代指所有玩家
+Name:玩家名(模糊)
+$VariableName(userdata or String):$变量名
+
+例如:
+/freeze
+/freeze *
+/freeze ipad水晶
+-------------------------------------
+-------------------------------------
+/unfreeze
+/unfreeze [* or Name or $VariableName(userdata or String)]
+
+命令 /unfreeze 解冻玩家
+
+*:代指所有玩家
+Name:玩家名(模糊)
+$VariableName(userdata or String):$变量名
+
+例如:
+/unfreeze
+/unfreeze *
+/unfreeze ipad水晶
+-------------------------------------
+-------------------------------------
+/removeweapon
+/removeweapon [* or Name or $VariableName(userdata or String)]
+
+命令 /removeweapon 去除玩家武器
+
+*:代指所有玩家
+Name:玩家名(模糊)
+$VariableName(userdata or String):$变量名
+
+例如:
+/removeweapon
+/removeweapon *
+/removeweapon ipad水晶
+-------------------------------------
+-------------------------------------
+/setview
+/setview [$VariableName(userdata or String) or Name]
+/setview [MinDist] [MaxDist]
+/setview [$VariableName(userdata or String) or Name] [MinDist] [MaxDist]
+
+命令 /setview 设置玩家视角
+
+$VariableName(userdata or String):$变量名
+Name:玩家名(模糊)
+MinDist:摄像机的最小距离
+MaxDist:摄像机的最大距离
+
+例如:
+/setview 30 300
+/setview ipad水晶 30 300
+-------------------------------------
+-------------------------------------
+/showbuymenu
+/showbuymenu [$VariableName(userdata or String) or Name or *]
+
+命令 /showbuymenu 显示购买菜单
+
+$VariableName(userdata or String):$变量名
+Name:玩家名(模糊)
+*:代指所有玩家
+
+例如:
+/showbuymenu
+/showbuymenu *
+/showbuymenu ipad水晶
+-------------------------------------
+-------------------------------------
+/respawn [$VariableName(userdata or String) or Name]
+
+命令 /respawn 强制玩家重生
+
+$VariableName(userdata or String):$变量名
+Name:玩家名(模糊)
+
+例如:
+/respawn ipad水晶
+-------------------------------------
+-------------------------------------
+/respawnable [$VariableName(boolean) or true or false]
+
+命令 /respawnable 开启或关闭玩家重生
+
+$VariableName(boolean):$变量名
+true:真
+false:假
+
+例如:
+/respawnable false
+-------------------------------------
+-------------------------------------
+/respawntime [$VariableName(number) or time]
+
+命令 /respawnable 玩家复活时间
+
+$VariableName(number):$变量名
+time:复活等待时间
+
+例如:
+/respawntime 10
+-------------------------------------
+-------------------------------------
+/enemyfire [$VariableName(boolean) or true or false]
+
+命令 /enemyfire 是否攻击敌对阵营
+
+$VariableName(boolean):$变量名
+true:真
+false:假
+
+例如:
+/enemyfire false
+-------------------------------------
+-------------------------------------
+/friendlyfire [$VariableName(boolean) or true or false]
+
+命令 /friendlyfire 开启友军伤害
+
+$VariableName(boolean):$变量名
+true:真
+false:假
+
+例如:
+/friendlyfire true
+-------------------------------------
+-------------------------------------
+/spawnmonster [MonsterName or MonsterId] [Amount < 10]
+/spawnmonster [MonsterName or MonsterId] [Amount < 10] [$VariableName(table or userdata) or Name]
+/spawnmonster [MonsterName or MonsterId] [Amount < 10] [X] [Y] [Z]
+
+命令 /spawnmonster 生成怪物
+
+MonsterType:怪物名称
+MonsterId:怪物ID
+Amount:生成数量 < 10
+$VariableName(table or userdata):$变量名
+Name:玩家名(模糊)
+X:x坐标
+Y:y坐标
+Z:z坐标
+
+例如:
+/spawnmonster PUMPKINHEAD 9
+/spawnmonster PUMPKINHEAD 9 ipad水晶
+-------------------------------------
+-------------------------------------
+/killallmonsters
+
+命令 /killallmonsters 在下一帧杀死所有怪物
+
+例如:
+/killallmonsters
+-------------------------------------
+-------------------------------------
+/rendercolor [$VariableName(table)]
+/rendercolor [$VariableName(userdata or String) or Name] [$VariableName(table)]
+/rendercolor [Red] [Green] [Blue]
+/rendercolor [$VariableName(userdata or String) or Name] [Red] [Green] [Blue]
+
+命令 /rendercolor 设置玩家颜色
+
+$VariableName(table):$变量名
+$VariableName(userdata or String):$变量名
+Name:玩家名(模糊)
+Red:红色(0~255)
+Green:绿色(0~255)
+Blue:蓝色(0~255)
+
+例如:
+/rendercolor ipad水晶 255 255 125
+-------------------------------------
+-------------------------------------
+/createweapon [WeaponName or WeaponId] [Amount < 60]
+/createweapon [WeaponName or WeaponId] [Amount < 60] [$VariableName(table or userdata) or Name]
+    
+命令 /createweapon 创建武器
+
+WeaponName:武器名称
+WeaponId:武器ID
+Amount:生成数量 < 60
+$VariableName(userdata or String):$变量名
+Name:玩家名(模糊)
+
+例如:
+/createweapon AUG 30
+/createweapon MK48 5 ipad水晶
+-------------------------------------
+-------------------------------------

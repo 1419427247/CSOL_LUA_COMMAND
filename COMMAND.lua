@@ -677,8 +677,8 @@ end
 local Group  = {
     none = -1,
     default = 0,
-    admin = 1,
-    superadmin = 2,
+    permissiondog = 1,
+    owner = 2,
 };
 
 (function()
@@ -963,13 +963,14 @@ if Game ~= nil then
         ["默认用户组"] = Group.default,
         ["打印操作信息"] = true,
         ["用户列表"] = {
-            ["ipad水晶"] = Group.superadmin,
-            ["水晶菌"] = Group.admin,
+            ["ipad水晶"] = Group.owner,
+            ["水晶菌"] = Group.permissiondog,
         },
     });
 
     --/$pos [VariableName]
-    --/$pos [VariableName] [Name]
+    --/$pos [VariableName] [$VariableName(userdata) or Name]
+    --/$pos [VariableName] [X] [Y] [Z]
     Command:register("$pos",Group.default,function(player,args)
         if #args == 1 then
             player.user.memory[args[1]:toString()] = {
@@ -978,15 +979,29 @@ if Game ~= nil then
                 z = player.position.z,
             };
         elseif #args == 2 then
-            local p = Player:getPlayerByName(args[2]:toString(),true);
-            if p == nil then
-                print("没有找到该玩家");
-                return;
+            if IKit.TypeOf(args[2]) == "String" then
+                local p = Player:getPlayerByName(args[2]:toString(),true);
+                if p == nil then
+                    print("没有找到该玩家");
+                    return;
+                end
+                player.user.memory[args[1]:toString()] = {
+                    x = p.position.x,
+                    y = p.position.y,
+                    z = p.position.z,
+                };
+            else
+                player.user.memory[args[1]:toString()] = {
+                    x = args[2].position.x,
+                    y = args[2].position.y,
+                    z = args[2].position.z,
+                };
             end
+        elseif #args == 4 then
             player.user.memory[args[1]:toString()] = {
-                x = p.position.x,
-                y = p.position.y,
-                z = p.position.z,
+                x = args[2]:toNumber(),
+                y = args[3]:toNumber(),
+                z = args[4]:toNumber(),
             };
         end
         Command:printMessage(player.name .. ":$" .. args[1]:toString());
@@ -1010,13 +1025,19 @@ if Game ~= nil then
         Command:printMessage("颜色:",args[2]:toNumber(),args[3]:toNumber(),args[4]:toNumber());
     end);
 
-    --/$player [VariableName] [String]
+    --/$string [VariableName] [String...]
     Command:register("$string",Group.default,function(player,args)
-        player.user.memory[args[1]:toString()] = args[2];
+        local str = IKit.New("String");
+        for i = 2,#args do
+            str:insert(args[i]);
+            str:insert(" ");
+        end
+        player.user.memory[args[1]:toString()] = str;
         Command:printMessage(player.name .. ":$" .. args[1]:toString());
-        Command:printMessage(args[2]:toString());
+        Command:printMessage(str:toString());
     end);
 
+    --/$model [VariableName] [String]
     Command:register("$model",Group.default,function(player,args)
         player.user.memory[args[1]:toString()] = Game.MODEL[args[2]:toString()];
         Command:printMessage(player.name .. ":$" .. args[1]:toString());
@@ -1024,7 +1045,7 @@ if Game ~= nil then
     end);
 
     
-    --/tp [$VariableName(userdata or string) or Name]
+    --/tp [$VariableName(userdata or String) or Name]
     Command:register("tp",Group.default,function(player,args)
         if IKit.TypeOf(args[1]) == "String" then
             player.position = Player:getPlayerByName(args[1]:toString(),true).position;
@@ -1050,22 +1071,12 @@ if Game ~= nil then
     end);
 
     --/sethome
-    --/sethome [$VariableName(table)]
-    --/sethome [X] [Y] [Z]
     Command:register("sethome",Group.default,function(player,args)
         if #args == 0 then
             player.user.home = {
                 x = player.position.x,
                 y = player.position.y,
                 z = player.position.z,
-            };
-        elseif #args == 1 then
-            player.user.home = args[1];
-        elseif #args == 3 then
-            player.user.home = {
-                x = args[1]:toNumber();
-                y = args[2]:toNumber();
-                z = args[3]:toNumber();
             };
         end
         Command:printMessage(player.name .. "设置了家");
@@ -1081,16 +1092,17 @@ if Game ~= nil then
     end);
 
     local Place = {};
-    --/place [PlaceName]
+    --/place [Name]
     Command:register("place",Group.default,function(player,args)
         Place[args[1]:toString()] = player.position;
     end);
 
-    --/move [PlaceName]
+    --/move [Name]
     Command:register("move",Group.default,function(player,args)
         player.position = Place[args[1]:toString()];
     end);
 
+    --/help
     Command:register("help",Group.default,function(player,args)
         for key, value in pairs(Command.methods) do
             print("/"..key);
@@ -1098,27 +1110,19 @@ if Game ~= nil then
     end);
 
 
-    --/! [$VariableName(string) or Expression]
-    Command:register("!",Group.superadmin,function(player,args)
+    --/! [$VariableName(String) or String...]
+    Command:register("!",Group.owner,function(player,args)
         SELF = player;
-        if #args == 1 then
-            if(IKit.TypeOf(args[1]) == "String") then
-                load(args[1]:toString())();
-            else
-                load(args[1])();
-            end
-        else
-            local str = IKit.New("String");
-            for i = 1,#args do
-                str:insert(args[i]);
-                str:insert(" ");
-            end
-            load(str:toString())();
+        local str = IKit.New("String");
+        for i = 1,#args do
+            str:insert(args[i]);
+            str:insert(" ");
         end
+        load(str:toString())();
     end);
 
-    --/$ [VariableName] [Expression]
-    Command:register("$",Group.superadmin,function(player,args)
+    --/$ [VariableName] [String...]
+    Command:register("$",Group.owner,function(player,args)
         if #args == 2 then
             if IKit.TypeOf(args[2]) == "String" then
                 args[2]:insert("return ",1);
@@ -1139,8 +1143,8 @@ if Game ~= nil then
         Command:printMessage(player.user.memory[args[1]:toString()]);
     end);
 
-    --/group [$VariableName(userdata or string) or Name] [Group]
-    Command:register("group",Group.admin,function(player,args)
+    --/group [$VariableName(userdata or String) or Name] [Group]
+    Command:register("group",Group.permissiondog,function(player,args)
         local p;
         if IKit.TypeOf(args[1]) == "String" then
             p = Player:getPlayerByName(args[1]:toString(),true);
@@ -1151,16 +1155,16 @@ if Game ~= nil then
             Command:printMessage("没有找到玩家");
             return;
         end
-        if player.user.group < Group[args[2]:toString()] then
+        if player.user.group > p.user.group and player.user.group >= Group[args[2]:toString()] then
+            p.user.group = Group[args[2]:toString()] or p.user.group;
+            Command:printMessage("变更了用户组");
+        else
             Command:printMessage("权限不足");
-            return;
         end
-        p.user.group = Group[args[2]:toString()] or p.user.group;
-        Command:printMessage("变更了用户组");
     end);
 
-    --/setplayer [$VariableName(userdata or string) or Name] [Key] [$VariableName or Value]
-    Command:register("setplayer",Group.admin,function(player,args)
+    --/setplayer [$VariableName(userdata or String) or Name] [Key] [$VariableName or Value]
+    Command:register("setplayer",Group.permissiondog,function(player,args)
         if #args == 3 then
             local p;
             if IKit.TypeOf(args[1]) == "String" then
@@ -1187,8 +1191,8 @@ if Game ~= nil then
     end);
 
     --/kill
-    --/kill [* or Name or $VariableName(userdata or string)]
-    Command:register("kill",Group.admin,function(player,args)
+    --/kill [* or Name or $VariableName(userdata or String)]
+    Command:register("kill",Group.permissiondog,function(player,args)
         if #args == 0 then
             player:Kill();
             Command:printMessage(player.name .. "杀死了自己");
@@ -1216,8 +1220,8 @@ if Game ~= nil then
     end);
 
     --/freeze
-    --/freeze [* or Name or $VariableName(userdata or string)]
-    Command:register("freeze",Group.admin,function(player,args)
+    --/freeze [* or Name or $VariableName(userdata or String)]
+    Command:register("freeze",Group.permissiondog,function(player,args)
         if #args == 0 then
             Command:sendMessage("freeze",player);
             Command:printMessage(player.name .. "冻结了自己");
@@ -1243,8 +1247,8 @@ if Game ~= nil then
     end);
 
     --/unfreeze
-    --/unfreeze [* or Name or $VariableName(userdata or string)]
-    Command:register("unfreeze",Group.admin,function(player,args)
+    --/unfreeze [* or Name or $VariableName(userdata or String)]
+    Command:register("unfreeze",Group.permissiondog,function(player,args)
         if #args == 0 then
             Command:sendMessage("unfreeze",player);
             Command:printMessage(player.name .. "解冻了自己");
@@ -1270,8 +1274,8 @@ if Game ~= nil then
     end);
 
     --/removeweapon
-    --/removeweapon [* or Name or $VariableName(userdata or string)]
-    Command:register("removeweapon",Group.admin,function(player,args)
+    --/removeweapon [* or Name or $VariableName(userdata or String)]
+    Command:register("removeweapon",Group.permissiondog,function(player,args)
         if #args == 0 then
             player:RemoveWeapon();
             Command:printMessage(player.name .. "移除了自己的武器");
@@ -1298,10 +1302,10 @@ if Game ~= nil then
     end);
 
     --/setview
-    --/setview [$VariableName(userdata or string) or Name]
+    --/setview [$VariableName(userdata or String) or Name]
     --/setview [MinDist] [MaxDist]
-    --/setview [$VariableName(userdata or string) or Name] [MinDist] [MaxDist]
-    Command:register("setview",Group.admin,function(player,args)
+    --/setview [$VariableName(userdata or String) or Name] [MinDist] [MaxDist]
+    Command:register("setview",Group.permissiondog,function(player,args)
         if #args == 0 then
             player:SetFirstPersonView();
         elseif #args == 1 then
@@ -1332,8 +1336,8 @@ if Game ~= nil then
     end);
 
     --/showbuymenu
-    --/showbuymenu [$VariableName(userdata or string) or Name or *]
-    Command:register("showbuymenu",Group.admin,function(player,args)
+    --/showbuymenu [$VariableName(userdata or String) or Name or *]
+    Command:register("showbuymenu",Group.permissiondog,function(player,args)
         if #args == 0 then
             player:ShowBuymenu();
         elseif #args == 1 then
@@ -1354,8 +1358,8 @@ if Game ~= nil then
         end
     end);
 
-    --/respawn [$VariableName(userdata or string) or Name]
-    Command:register("respawn",Group.admin,function(player,args)
+    --/respawn [$VariableName(userdata or String) or Name]
+    Command:register("respawn",Group.permissiondog,function(player,args)
         if #args == 0 then
             player:Respawn();
         elseif #args == 1 then
@@ -1377,7 +1381,7 @@ if Game ~= nil then
     end);
 
     --/respawnable [$VariableName(boolean) or true or false]
-    Command:register("respawnable",Group.admin,function(player,args)
+    Command:register("respawnable",Group.permissiondog,function(player,args)
         if IKit.TypeOf(args[1]) == "String" then
             if args[1]:equals("true") then
                 Game.Rule.respawnable = true;
@@ -1390,7 +1394,7 @@ if Game ~= nil then
     end);
 
     --/respawntime [$VariableName(number) or time]
-    Command:register("respawntime",Group.admin,function(player,args)
+    Command:register("respawntime",Group.permissiondog,function(player,args)
         if IKit.TypeOf(args[1]) == "String" then
             Game.Rule.respawnTime = args[1]:toNumber();
         else
@@ -1399,7 +1403,7 @@ if Game ~= nil then
     end);
 
     --/enemyfire [$VariableName(boolean) or true or false]
-    Command:register("enemyfire",Group.admin,function(player,args)
+    Command:register("enemyfire",Group.permissiondog,function(player,args)
         if IKit.TypeOf(args[1]) == "String" then
             if args[1]:equals("true") then
                 Game.Rule.enemyfire = true;
@@ -1412,7 +1416,7 @@ if Game ~= nil then
     end);
 
     --/friendlyfire [$VariableName(boolean) or true or false]
-    Command:register("friendlyfire",Group.admin,function(player,args)
+    Command:register("friendlyfire",Group.permissiondog,function(player,args)
         if IKit.TypeOf(args[1]) == "String" then
             if args[1]:equals("true") then
                 Game.Rule.friendlyfire = true;
@@ -1425,7 +1429,7 @@ if Game ~= nil then
     end);
 
     --/breakable [$VariableName(boolean) or true or false]
-    Command:register("breakable",Group.admin,function(player,args)
+    Command:register("breakable",Group.permissiondog,function(player,args)
         if IKit.TypeOf(args[1]) == "String" then
             if args[1]:equals("true") then
                 Game.Rule.breakable = true;
@@ -1438,10 +1442,10 @@ if Game ~= nil then
     end);
 
 
-    --/spawnmonster [MonsterType or MonsterId] [Amount < 20]
-    --/spawnmonster [MonsterType or MonsterId] [Amount < 20] [$VariableName(table) or $VariableName(userdata) or Name]
-    --/spawnmonster [MonsterType or MonsterId] [Amount < 20] [X] [Y] [Z]
-    Command:register("spawnmonster",Group.admin,function(player,args)
+    --/spawnmonster [MonsterName or MonsterId] [Amount < 20]
+    --/spawnmonster [MonsterName or MonsterId] [Amount < 20] [$VariableName(table) or $VariableName(userdata) or Name]
+    --/spawnmonster [MonsterName or MonsterId] [Amount < 20] [X] [Y] [Z]
+    Command:register("spawnmonster",Group.permissiondog,function(player,args)
         local type = Game.MONSTERTYPE[args[1]:toString()] or Game.MONSTERTYPE[args[1]:toNumber()];
         if #args == 2 then
             for i = 1,args[2]:toNumber() do
@@ -1454,7 +1458,7 @@ if Game ~= nil then
                 elseif IKit.TypeOf(args[3]) == "userdata" then
                     Game.Monster:Create(type,args[3].position);
                 else
-                    local p = Player:getPlayerByName(args[1]:toString(),true);
+                    local p = Player:getPlayerByName(args[3]:toString(),true);
                     if p == nil then
                         print("没有找到玩家");
                         return;
@@ -1463,7 +1467,7 @@ if Game ~= nil then
                 end
             end
         elseif #args == 5 then
-            if args[2]:toNumber() < 20 then
+            if args[2]:toNumber() < 10 then
                 for i = 1,args[2]:toNumber() do
                     Game.Monster:Create(type,{x=args[3]:toNumber(),y=args[4]:toNumber(),z=args[5]:toNumber()});
                 end
@@ -1473,16 +1477,16 @@ if Game ~= nil then
     end);
 
     --/killallmonsters
-    Command:register("killallmonsters",Group.admin,function(player,args)
+    Command:register("killallmonsters",Group.permissiondog,function(player,args)
         Game.KillAllMonsters();
         Command:printMessage(player.name,"杀死了所有怪物");
     end);
 
     --/rendercolor [$VariableName(table)]
-    --/rendercolor [$VariableName(userdata or string) or Name] [$VariableName(table)]
+    --/rendercolor [$VariableName(userdata or String) or Name] [$VariableName(table)]
     --/rendercolor [Red] [Green] [Blue]
-    --/rendercolor [$VariableName(userdata or string) or Name] [Red] [Green] [Blue]
-    Command:register("rendercolor",Group.admin,function(player,args)
+    --/rendercolor [$VariableName(userdata or String) or Name] [Red] [Green] [Blue]
+    Command:register("rendercolor",Group.permissiondog,function(player,args)
         player:SetRenderFX(Game.RENDERFX.GLOWSHELL);
         if #args == 1 then
             player:SetRenderColor(args[1]);
@@ -1515,7 +1519,7 @@ if Game ~= nil then
 
     --/createweapon [WeaponName or WeaponId] [Amount < 60]
     --/createweapon [WeaponName or WeaponId] [Amount < 60] [$VariableName(table or userdata) or Name]
-    Command:register("createweapon",Group.admin,function(player,args)
+    Command:register("createweapon",Group.permissiondog,function(player,args)
         local weapon = Common.WEAPON[args[1]:toString()] or Common.WEAPON[args[1]:toNumber()];
         local position;
         if #args == 2 then
@@ -1556,4 +1560,5 @@ if UI ~= nil then
     Command:register("unfreeze",function(args)
         UI.StopPlayerControl(false);
     end);
+
 end
