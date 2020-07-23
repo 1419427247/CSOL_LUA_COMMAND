@@ -812,12 +812,12 @@ local Group  = {
         
         for i = 1,#args do
             if args[i]:charAt(1) == "$" then
-                args[i] = player.user.memory[args[i]:substring(2,args[i].length):toString()];
-                if args[i] == nil then
+                local var = player.user.memory[args[i]:substring(2,args[i].length):toString()];
+                if var == nil then
                     print("没有找到变量:" .. args[i]:toString());
                     return;
                 end
-                if IKit.TypeOf(args[i]) == "string" then
+                if IKit.TypeOf(var) == "string" then
                     args[i] = IKit.New("String",args[i]);
                 end
             end
