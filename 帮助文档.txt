@@ -185,6 +185,22 @@ Group:用户组
 /group 水晶 default
 -------------------------------------
 -------------------------------------
+/setplayer [$VariableName(userdata or String) or Name] [Key] [$VariableName or Value]
+
+命令 /setplayer 设置玩家字段值
+
+$VariableName(userdata or String):$变量名
+Name:玩家名(模糊)
+Key:键
+Value:值
+
+例如:
+/$pos p
+/setplayer ipad水晶 health 100
+/setplayer ipad水晶 model 38
+/setplayer ipad水晶 position $p
+-------------------------------------
+-------------------------------------
 /kill
 /kill [* or Name or $VariableName(userdata or String)]
 
