@@ -1530,7 +1530,7 @@ if Game ~= nil then
             elseif IKit.TypeOf(args[3]) == "userdata" then
                 position = args[3].position;
             else
-                local p = Player:getPlayerByName(args[1]:toString(),true);
+                local p = Player:getPlayerByName(args[3]:toString(),true);
                 if p == nil then
                     print("没有找到玩家");
                     return;

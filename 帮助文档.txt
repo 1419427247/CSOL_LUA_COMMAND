@@ -1,3 +1,4 @@
+CSOL缔造者指令模块，共计32个命令，使用方法，在聊天框输入:/指令 参数...
 -------------------------------------
 使用函数pcall来包装需要执行的代码，以防止脚本停止运行
 ["安全模式"] = true
@@ -341,7 +342,7 @@ false:假
 -------------------------------------
 /friendlyfire [$VariableName(boolean) or true or false]
 
-命令 /friendlyfire 开启友军伤害
+命令 /friendlyfire 设置是否开启友军伤害
 
 $VariableName(boolean):$变量名
 true:真
@@ -349,6 +350,18 @@ false:假
 
 例如:
 /friendlyfire true
+-------------------------------------
+-------------------------------------
+/breakable [$VariableName(boolean) or true or false]
+
+命令 /breakable 是否开启地图破坏
+
+$VariableName(boolean):$变量名
+true:真
+false:假
+
+例如:
+/breakable true
 -------------------------------------
 -------------------------------------
 /spawnmonster [MonsterName or MonsterId] [Amount < 10]
